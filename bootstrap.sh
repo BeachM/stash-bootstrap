@@ -1,6 +1,6 @@
 #!/bin/bash
 s3cmd="/usr/local/bin/s3cmd --config=/root/.s3cfg"
-s3name="dash-bootstrap"
+s3name="stash-bootstrap"
 s3bucket="s3://$s3name/"
 s3https="https://$s3name.ams3.digitaloceanspaces.com/"
 file="bootstrap.dat"
@@ -58,19 +58,19 @@ do_the_job() {
 echo -e "$header\n" > README.md
 
 # mainnet
-#cat ~/.dash/blocks/blk0000* > $file
-blocks=`dash-cli getblockcount`
+#cat ~/.stash/blocks/blk0000* > $file
+blocks=`stash-cli getblockcount`
 do_the_job mainnet
 
 # testnet
-#cat ~/.dash/testnet3/blocks/blk0000* > $file
-blocks=`dash_testnet-cli -datadir=/root/.dashcore_test getblockcount`
-do_the_job testnet
+#cat ~/.stash/testnet3/blocks/blk0000* > $file
+blocks=`stash_testnet-cli -datadir=/root/.stashcore_test getblockcount`
+#do_the_job testnet
 
 # finalize with the footer
 echo -e "$footer" >> README.md
 
 # push to github
-git add *.md
-git commit -m "$date - autoupdate"
-git push
+#git add *.md
+#git commit -m "$date - autoupdate"
+#git push
