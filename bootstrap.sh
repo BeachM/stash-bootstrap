@@ -28,6 +28,10 @@ do_the_job() {
   # calculate checksums
   sha256sum $file > $file_sha256
   sha256sum $file_zip >> $file_sha256
+
+  # TODO - modify upload code below. For now just exit
+  echo "Successfully created file $file"
+  exit
   # store
   $s3cmd put $file_zip $file_sha256 $s3currentPath --acl-public
   # update docs
