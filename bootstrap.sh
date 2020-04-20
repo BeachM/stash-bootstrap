@@ -1,10 +1,5 @@
 #!/bin/bash
-s3cmd="/usr/local/bin/s3cmd --config=/root/.s3cfg"
-s3name="stash-bootstrap"
-s3bucket="s3://$s3name/"
-s3https="https://$s3name.ams3.digitaloceanspaces.com/"
 file="bootstrap.dat"
-file_zip="$file.zip"
 file_sha256="sha256.txt"
 header=`cat header.md`
 footer=`cat footer.md`
@@ -20,6 +15,8 @@ do_the_job() {
   linksFile="links-$network.md"
   prevLinks=`head $linksFile`
   echo "$network job - Starting..."
+  max_height=$( eval cat linearize-$network.cfg | grep max_height | sed "s/max_height=//g" )
+  file_zip="stpx_bootstrap_${network}_${max_height}.zip"
   # process blockchain
   ./linearize-hashes.py linearize-$network.cfg > hashlist.txt
   ./linearize-data.py linearize-$network.cfg
@@ -31,30 +28,20 @@ do_the_job() {
 
   # TODO - modify upload code below. For now just exit
   echo "Successfully created file $file"
-  exit
-  # store
-  $s3cmd put $file_zip $file_sha256 $s3currentPath --acl-public
-  # update docs
-  url_zip=$s3currentUrl$file_zip
-  url_sha256=$s3currentUrl$file_sha256
+  
+  # store on IPFS (make sure ipfs daemon is running first)
+  ipfs_zip=$( ipfs add -Q $file_zip )
+  ipfs_sha256=$( ipfs add -Q $file_sha256 )
+  url_zip="https://ipfs.io/ipfs/${ipfs_zip}?filename=${file_zip}"
+  url_sha256="https://ipfs.io/ipfs/${ipfs_sha256}?filename=${file_sha256}"
+
   size_zip=`ls -lh $file_zip | awk -F" " '{ print $5 }'`
-  newLinks="Block $blocks: $date [zip]($url_zip) ($size_zip) [SHA256]($url_sha256)\n\n$prevLinks"
+  newLinks="Block $max_height: $date [zip]($url_zip) ($size_zip) [SHA256]($url_sha256)\n\n$prevLinks"
   echo -e "$newLinks" > $linksFile
-  rm $file $file_zip $file_sha256 hashlist.txt
-  echo -e "#### For $network:\n\n$newLinks\n\n" >> README.md
-  # clean up old files
-  keepDays=7
-  scanDays=30
-  oldFolders=$($s3cmd ls $s3networkPath | grep -oP 's3:.*')
-  while [ $keepDays -lt $scanDays ]; do
-    loopDate=$(date -u -d "now -"$keepDays" days" +%Y-%m-%d)
-    found=$(echo -e $oldFolders | grep -oP $loopDate)
-    if [ "$found" != "" ]; then
-      echo "found old folder $found, deleting $s3networkPath$loopDate/ ..."
-      $s3cmd del -r $s3networkPath$loopDate/
-    fi
-    let keepDays=keepDays+1
-  done
+
+  #cleanup
+  rm hashlist.txt sha256.txt bootstrap.dat
+
   echo "$network job - Done!"
 }
 
@@ -63,13 +50,13 @@ echo -e "$header\n" > README.md
 
 # mainnet
 #cat ~/.stash/blocks/blk0000* > $file
-blocks=`stash-cli getblockcount`
+blocks=`~/stash/src/stash-cli -testnet=0 getblockcount`
 do_the_job mainnet
 
 # testnet
 #cat ~/.stash/testnet3/blocks/blk0000* > $file
-blocks=`stash_testnet-cli -datadir=/root/.stashcore_test getblockcount`
-#do_the_job testnet
+blocks=`~/stash/src/stash-cli -testnet=1 getblockcount`
+do_the_job testnet
 
 # finalize with the footer
 echo -e "$footer" >> README.md
